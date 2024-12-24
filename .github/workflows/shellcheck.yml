@@ -34,7 +34,7 @@ jobs:
 
       # Step 2: Run ShellCheck to lint shell scripts
       - name: Run ShellCheck
-        uses: ludeeus/action-shellcheck@v2  # Use the ShellCheck action for linting shell scripts
+        uses: ludeeus/action-shellcheck@master  # Use the ShellCheck action for linting shell scripts
         with:
           # Specify any additional arguments or options for ShellCheck (optional)
           args: "--check-sourced --enable=all"  # Example args: check sourced files, enable all checks
