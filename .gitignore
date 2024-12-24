@@ -1,18 +1,12 @@
-# Binaries for programs and plugins
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
+# Ignore macOS-specific system files
 
-# Test binary, built with `go test -c`
-*.test
+.DS_Store # Hidden file created by macOS Finder to store custom attributes
 
-# Output of the go coverage tool, specifically when used with LiteIDE
-*.out
+# Ignore Windows-specific system files
 
-# Dependency directories (remove the comment below to include it)
-vendor/
+Thumbs.db # Thumbnail cache file used by Windows Explorer
+Desktop.ini # Configuration file for customizing folder settings in Windows
 
-# Logs from the local application.
-*.log
+# Ignore VS Code configuration folder
+
+.vscode/ # Contains local Visual Studio Code settings and extensions
