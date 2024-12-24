@@ -178,74 +178,74 @@ if [ ! -f "${UNBOUND_MANAGER}" ]; then
   # Run the installation function
   install-unbound # Execute the install-unbound function to start the installation process
 
-  function choose-your-list() {
-    echo "Which list do you want to use?"
-    echo "1) All (Recommended)"
-    echo "2) No (Advanced)"
-    until [[ "${LIST_CHOICE_SETTINGS}" =~ ^[1-2]$ ]]; do
-      read -rp "List Choice [1-2]: " -e -i 1 LIST_CHOICE_SETTINGS
-    done
-    case ${LIST_CHOICE_SETTINGS} in
-    1)
-      # Create a backup of the original unbound config file, if needed, before modifying
-      echo "include: ${UNBOUND_CONFIG_HOST}" >>"${UNBOUND_CONFIG}"
-      # Download the file directly to the Unbound config host file path
-      curl -s "${UNBOUND_CONFIG_HOST_URL}" -o "${UNBOUND_CONFIG_HOST}"
-      # Modify the contents of the downloaded file:
-      # 1. Prepend "0.0.0.0" to each line (using sed).
-      # 2. Extract lines starting with "0.0.0.0" and format them as local-data entries.
-      sed -i -e "s_.*_0.0.0.0 &_" "${UNBOUND_CONFIG_HOST}"
-      # Filter the lines starting with "0.0.0.0" and format them as Unbound local-data entries
-      grep "^0\.0\.0\.0" "${UNBOUND_CONFIG_HOST}" | awk '{print "local-data: \""$2" IN A 0.0.0.0\""}' >"${UNBOUND_CONFIG_HOST}"
-      ;;
-    2)
-      echo "There are no lists selected."
-      ;;
-    esac
+  # Install unbound Ad Blocker Config
+  function ad-block-config-unbound() {
+    # Download the ad blocker config file from the provided URL and save it to the specified host file
+    curl -sSL "${UNBOUND_CONFIG_HOST_URL}" -o "${UNBOUND_CONFIG_HOST}"
+    # Append the path of the downloaded config file to the main unbound config file
+    # This makes the unbound configuration aware of the newly downloaded blocklist
+    echo "include: ${UNBOUND_CONFIG_HOST}" >>"${UNBOUND_CONFIG}"
+    # Prepend "0.0.0.0" to each line in the downloaded blocklist file to redirect blocked domains to the null IP address
+    # This modifies the entries so they are effectively "blocked" by resolving to an invalid address
+    sed -i -e "s_.*_0.0.0.0 &_" "${UNBOUND_CONFIG_HOST}"
+    # Filter the lines starting with "0.0.0.0" and format them as Unbound local-data entries
+    # The formatted lines will specify that the domain resolves to 0.0.0.0, which Unbound will treat as an invalid IP
+    grep "^0\.0\.0\.0" "${UNBOUND_CONFIG_HOST}" | awk '{print "local-data: \""$2" IN A 0.0.0.0\""}' >"${UNBOUND_CONFIG_HOST}"
+    # Print a success message indicating the ad blocker config has been applied
+    echo "Ad blocker config has been applied successfully."
   }
 
-  choose-your-list
+  # Run the function to apply the ad blocker config
+  ad-block-config-unbound
 
   # Function to enable automatic updates with real-time configuration options
   function enable-automatic-updates() {
-    # Prompt user for choosing automatic updates option
-    echo "Would you like to setup real-time updates?"
-    echo "1) Yes (Recommended)"
-    echo "2) No (Advanced)"
+    # Ensure the script path is valid and executable
+    script_path="$(realpath "$0")"
+    if [ ! -x "$script_path" ]; then
+      echo "Error: The script '$script_path' is not executable or the path is invalid."
+      return 1
+    fi
 
-    # Loop until user input is valid (either 1 or 2)
-    until [[ "${AUTOMATIC_UPDATES_SETTINGS}" =~ ^[1-2]$ ]]; do
-      read -rp "Automatic Updates [1-2]: " -e -i 1 AUTOMATIC_UPDATES_SETTINGS
-    done
+    # Define the cron job for daily updates at midnight
+    cron_job="0 0 * * * $script_path --update"
 
-    # Process user choice
-    case ${AUTOMATIC_UPDATES_SETTINGS} in
-    # Option 1: Enable real-time updates using cron job
-    1)
-      echo "Setting up real-time updates..."
-
-      # Add cron job for daily updates at midnight
-      crontab -l | {
-        cat
-        echo "0 0 * * * $(realpath "$0") --update" # Calls the script itself with --update argument
-      } | crontab -
-      # Enable and start cron service based on init system (systemd or init)
-      if [ "${CURRENT_INIT_SYSTEM}" == "systemd" ]; then
-        echo "Enabling and starting cron using systemd..."
-        systemctl enable cron
-        systemctl start cron
-      else
-        echo "Enabling and starting cron using init system..."
-        service cron enable
-        service cron start
+    # Check if the cron job is already added
+    if ! crontab -l | grep -F "$cron_job" >/dev/null; then
+      # Add the cron job if not present
+      (
+        crontab -l 2>/dev/null
+        echo "$cron_job"
+      ) | crontab -
+      if [ $? -ne 0 ]; then
+        echo "Error: Failed to add the cron job."
+        return 1
       fi
-      echo "Real-time updates have been enabled."
-      ;;
-    # Option 2: Disable real-time updates
-    2)
-      echo "Real-time updates disabled."
-      ;;
-    esac
+      echo "Cron job for daily updates has been added."
+    else
+      echo "Cron job for daily updates already exists."
+    fi
+
+    # Enable and start the cron service based on the init system
+    if [ "$CURRENT_INIT_SYSTEM" == "systemd" ]; then
+      echo "Enabling and starting cron using systemd..."
+      if ! systemctl enable cron || ! systemctl start cron; then
+        echo "Error: Failed to enable/start cron service using systemd."
+        return 1
+      fi
+    elif [ "$CURRENT_INIT_SYSTEM" == "init" ]; then
+      echo "Enabling and starting cron using init system..."
+      if ! service cron enable || ! service cron start; then
+        echo "Error: Failed to enable/start cron service using init system."
+        return 1
+      fi
+    else
+      echo "Error: Unknown init system '$CURRENT_INIT_SYSTEM'. Cron may not be enabled."
+      return 1
+    fi
+
+    # Confirm that automatic updates have been successfully enabled
+    echo "Automatic updates have been successfully enabled."
   }
 
   # Run the function to enable automatic updates
