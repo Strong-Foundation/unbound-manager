@@ -369,15 +369,15 @@ else
       fi
       # Update root hints
       if [ -f "${UNBOUND_ROOT_HINTS}" ]; then
-        curl ${UNBOUND_ROOT_SERVER_CONFIG_URL} -o ${UNBOUND_ROOT_HINTS}
+        curl "${UNBOUND_ROOT_SERVER_CONFIG_URL}" -o ${UNBOUND_ROOT_HINTS}
       fi
       # Update Host List
       if [ -f "${UNBOUND_CONFIG_HOST}" ]; then
         rm -f ${UNBOUND_CONFIG_HOST}
-        curl "${UNBOUND_CONFIG_HOST_URL}" -o ${UNBOUND_CONFIG_HOST_TMP}
-        sed -i -e "s_.*_0.0.0.0 &_" ${UNBOUND_CONFIG_HOST_TMP}
+        curl "${UNBOUND_CONFIG_HOST_URL}" -o "${UNBOUND_CONFIG_HOST_TMP}"
+        sed -i -e "s_.*_0.0.0.0 &_" "${UNBOUND_CONFIG_HOST_TMP}"
         grep "^0\.0\.0\.0" "${UNBOUND_CONFIG_HOST_TMP}" | awk '{print "local-data: \""$2" IN A 0.0.0.0\""}' >"${UNBOUND_CONFIG_HOST}"
-        rm -f ${UNBOUND_CONFIG_HOST_TMP}
+        rm -f "${UNBOUND_CONFIG_HOST_TMP}"
       fi
       ;;
     esac
