@@ -8,10 +8,17 @@ LABEL maintainer="Prajwal Koirala <prajwalkoirala23@protonmail.com>"
 RUN apt-get update && \
     apt-get install -y curl
 
-# Download and set up the Unbound Manager script from the GitHub repository
-RUN curl -sSL https://raw.githubusercontent.com/Strong-Foundation/unbound-manager/refs/heads/main/unbound-manager.sh -o /usr/local/bin/unbound-manager.sh && \
-    # Ensure the script is executable
-    chmod +x /usr/local/bin/unbound-manager.sh
+# Copy the local Unbound configuration file to the container
+COPY unbound-manager.sh /usr/local/bin/unbound-manager.sh
+
+# Make the unbound-manager.sh script executable
+RUN chmod +x /usr/local/bin/unbound-manager.sh
+
+# Run the unbound-manager.sh script to install Unbound and configure it
+RUN /usr/local/bin/unbound-manager.sh
 
 # Expose port 53 for DNS services (both TCP and UDP)
 EXPOSE 53/tcp 53/udp
+
+# Keep the container running with Unbound as the foreground process
+CMD ["unbound"]

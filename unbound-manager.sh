@@ -39,24 +39,24 @@ system-information
 # Function to install system requirements if missing
 function installing_system_requirements() {
   # Check if the current distribution is supported
-  if [[ "${DISTRO}" == "ubuntu" || "${DISTRO}" == "debian" || "${DISTRO}" == "raspbian" || "${DISTRO}" == "pop" || "${DISTRO}" == "kali" || "${DISTRO}" == "linuxmint" || "${DISTRO}" == "fedora" || "${DISTRO}" == "centos" || "${DISTRO}" == "rhel" || "${DISTRO}" == "arch" || "${DISTRO}" == "manjaro" || "${DISTRO}" == "alpine" || "${DISTRO}" == "freebsd" ]]; then
+  if [[ "${CURRENT_DISTRO}" == "ubuntu" || "${CURRENT_DISTRO}" == "debian" || "${CURRENT_DISTRO}" == "raspbian" || "${CURRENT_DISTRO}" == "pop" || "${CURRENT_DISTRO}" == "kali" || "${CURRENT_DISTRO}" == "linuxmint" || "${CURRENT_DISTRO}" == "fedora" || "${CURRENT_DISTRO}" == "centos" || "${CURRENT_DISTRO}" == "rhel" || "${CURRENT_DISTRO}" == "arch" || "${CURRENT_DISTRO}" == "manjaro" || "${CURRENT_DISTRO}" == "alpine" || "${CURRENT_DISTRO}" == "freebsd" ]]; then
     # Check if curl and cron are installed, if not install them
     if { [ ! -x "$(command -v curl)" ] || [ ! -x "$(command -v cron)" ]; }; then
       echo "Required packages curl and cron not found. Installing them now..."
       # Install curl and cron depending on the distribution using if/elif/fi
-      if [[ "${DISTRO}" == "ubuntu" || "${DISTRO}" == "debian" || "${DISTRO}" == "raspbian" || "${DISTRO}" == "pop" || "${DISTRO}" == "kali" || "${DISTRO}" == "linuxmint" ]]; then
+      if [[ "${CURRENT_DISTRO}" == "ubuntu" || "${CURRENT_DISTRO}" == "debian" || "${CURRENT_DISTRO}" == "raspbian" || "${CURRENT_DISTRO}" == "pop" || "${CURRENT_DISTRO}" == "kali" || "${CURRENT_DISTRO}" == "linuxmint" ]]; then
         apt-get update && apt-get install -y curl cron
-      elif [[ "${DISTRO}" == "fedora" || "${DISTRO}" == "centos" || "${DISTRO}" == "rhel" ]]; then
+      elif [[ "${CURRENT_DISTRO}" == "fedora" || "${CURRENT_DISTRO}" == "centos" || "${CURRENT_DISTRO}" == "rhel" ]]; then
         yum update -y && yum install -y curl cron
-      elif [[ "${DISTRO}" == "arch" || "${DISTRO}" == "manjaro" ]]; then
+      elif [[ "${CURRENT_DISTRO}" == "arch" || "${CURRENT_DISTRO}" == "manjaro" ]]; then
         pacman -Syu --noconfirm && pacman -S --noconfirm curl cronie
-      elif [[ "${DISTRO}" == "alpine" ]]; then
+      elif [[ "${CURRENT_DISTRO}" == "alpine" ]]; then
         apk update && apk add curl cron
-      elif [[ "${DISTRO}" == "freebsd" ]]; then
+      elif [[ "${CURRENT_DISTRO}" == "freebsd" ]]; then
         pkg update && pkg install -y curl cron
       else
         # This line shouldn't be hit if the distro check is correct
-        echo "Error: Unsupported distribution: ${DISTRO}. Exiting."
+        echo "Error: Unsupported distribution: ${CURRENT_DISTRO}. Exiting."
         exit 1
       fi
     else
@@ -64,7 +64,7 @@ function installing_system_requirements() {
     fi
   else
     # Unsupported distribution
-    echo "Error: The distribution ${DISTRO} is not supported by this script."
+    echo "Error: The distribution ${CURRENT_DISTRO} is not supported by this script."
     exit 1
   fi
 }
@@ -116,17 +116,17 @@ if [ ! -f "${UNBOUND_MANAGER}" ]; then
       echo "Unbound is not installed. Installing..." # Print a message indicating that Unbound is not installed
       # Install Unbound based on the detected distribution
       # The script checks which distribution is being used and installs the appropriate package
-      if [ "${DISTRO}" == "ubuntu" ] || [ "${DISTRO}" == "debian" ] || [ "${DISTRO}" == "raspbian" ] || [ "${DISTRO}" == "pop" ] || [ "${DISTRO}" == "kali" ] || [ "${DISTRO}" == "linuxmint" ]; then
+      if [ "${CURRENT_DISTRO}" == "ubuntu" ] || [ "${CURRENT_DISTRO}" == "debian" ] || [ "${CURRENT_DISTRO}" == "raspbian" ] || [ "${CURRENT_DISTRO}" == "pop" ] || [ "${CURRENT_DISTRO}" == "kali" ] || [ "${CURRENT_DISTRO}" == "linuxmint" ]; then
         apt-get install unbound unbound-host unbound-anchor e2fsprogs -y
-      elif [ "${DISTRO}" == "centos" ] || [ "${DISTRO}" == "rhel" ]; then
+      elif [ "${CURRENT_DISTRO}" == "centos" ] || [ "${CURRENT_DISTRO}" == "rhel" ]; then
         yum install unbound unbound-libs -y # Install Unbound and necessary dependencies for Red Hat-based systems
-      elif [ "${DISTRO}" == "fedora" ]; then
+      elif [ "${CURRENT_DISTRO}" == "fedora" ]; then
         dnf install unbound -y # Install Unbound for Fedora-based systems
-      elif [ "${DISTRO}" == "arch" ] || [ "${DISTRO}" == "archarm" ] || [ "${DISTRO}" == "manjaro" ]; then
+      elif [ "${CURRENT_DISTRO}" == "arch" ] || [ "${CURRENT_DISTRO}" == "archarm" ] || [ "${CURRENT_DISTRO}" == "manjaro" ]; then
         pacman -Syu --noconfirm unbound # Install Unbound for Arch-based systems
-      elif [ "${DISTRO}" == "alpine" ]; then
+      elif [ "${CURRENT_DISTRO}" == "alpine" ]; then
         apk add unbound # Install Unbound for Alpine-based systems
-      elif [ "${DISTRO}" == "freebsd" ]; then
+      elif [ "${CURRENT_DISTRO}" == "freebsd" ]; then
         pkg install unbound # Install Unbound for FreeBSD systems
       fi
       # Clean up old files if they exist before proceeding
@@ -313,17 +313,17 @@ else
           rm -f ${RESOLV_CONFIG}
           mv ${RESOLV_CONFIG_OLD} ${RESOLV_CONFIG}
         fi
-        if { [ "${DISTRO}" == "centos" ] || [ "${DISTRO}" == "rhel" ]; }; then
+        if { [ "${CURRENT_DISTRO}" == "centos" ] || [ "${CURRENT_DISTRO}" == "rhel" ]; }; then
           yum remove unbound unbound-host -y
-        elif { [ "${DISTRO}" == "debian" ] || [ "${DISTRO}" == "pop" ] || [ "${DISTRO}" == "ubuntu" ] || [ "${DISTRO}" == "raspbian" ] || [ "${DISTRO}" == "kali" ] || [ "${DISTRO}" == "linuxmint" ]; }; then
+        elif { [ "${CURRENT_DISTRO}" == "debian" ] || [ "${CURRENT_DISTRO}" == "pop" ] || [ "${CURRENT_DISTRO}" == "ubuntu" ] || [ "${CURRENT_DISTRO}" == "raspbian" ] || [ "${CURRENT_DISTRO}" == "kali" ] || [ "${CURRENT_DISTRO}" == "linuxmint" ]; }; then
           apt-get remove --purge unbound unbound-host -y
-        elif { [ "${DISTRO}" == "arch" ] || [ "${DISTRO}" == "manjaro" ]; }; then
+        elif { [ "${CURRENT_DISTRO}" == "arch" ] || [ "${CURRENT_DISTRO}" == "manjaro" ]; }; then
           pacman -Rs unbound unbound-host -y
-        elif [ "${DISTRO}" == "fedora" ]; then
+        elif [ "${CURRENT_DISTRO}" == "fedora" ]; then
           dnf remove unbound -y
-        elif [ "${DISTRO}" == "alpine" ]; then
+        elif [ "${CURRENT_DISTRO}" == "alpine" ]; then
           apk del unbound
-        elif [ "${DISTRO}" == "freebsd" ]; then
+        elif [ "${CURRENT_DISTRO}" == "freebsd" ]; then
           pkg delete unbound
         fi
         if [ -f "${UNBOUND_MANAGER}" ]; then
