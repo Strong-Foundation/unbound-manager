@@ -1,33 +1,40 @@
 #!/bin/bash
-# https://github.com/complexorganizations/unbound-manager
 
-# Function to check if the script is run as root (superuser)
-function super_user_check() {
-  if [ "${EUID}" -ne 0 ]; then
-    echo "Error: You need to run this script as root (superuser)."
-    exit 1
+# Contributing:
+# - Contributions to the script are welcome. Please follow the contributing guidelines in the repository.
+
+# Contact Information:
+# - For support, feature requests, or bug reports, please open an issue on the GitHub repository.
+
+# License: MIT License
+
+# Note: This script is provided 'as is', without warranty of any kind. The user is responsible for understanding the operations and risks involved.
+
+# Check if the script is running as root
+function check_root() {
+  if [ "$(id -u)" -ne 0 ]; then
+    echo "Error: This script must be run as root."
+    exit
   fi
 }
 
-# Check for root privileges
-super_user_check
+# Call the function to check root privileges
+check_root
 
-# Function to detect the operating system
-function dist_check() {
-  if [ -e /etc/os-release ]; then
-    # shellcheck disable=SC1091
+# Function to gather current system details
+function system-information() {
+  # This function fetches the ID, version, and major version of the current system
+  if [ -f /etc/os-release ]; then
+    # If /etc/os-release file is present, source it to obtain system details
+    # shellcheck source=/dev/null
     source /etc/os-release
-    DISTRO=${ID}
-    # Inform user about the detected OS
-    echo "Detected Operating System: ${DISTRO}"
-  else
-    echo "Error: Unable to detect the operating system. /etc/os-release not found."
-    exit 1
+    CURRENT_DISTRO=${ID}                 # CURRENT_DISTRO holds the system's ID
+    CURRENT_DISTRO_VERSION=${VERSION_ID} # CURRENT_DISTRO_VERSION holds the system's VERSION_ID
   fi
 }
 
-# Detect the Operating System
-dist_check
+# Invoke the system-information function
+system-information
 
 # Function to install system requirements if missing
 function installing_system_requirements() {
@@ -36,7 +43,6 @@ function installing_system_requirements() {
     # Check if curl and cron are installed, if not install them
     if { [ ! -x "$(command -v curl)" ] || [ ! -x "$(command -v cron)" ]; }; then
       echo "Required packages curl and cron not found. Installing them now..."
-
       # Install curl and cron depending on the distribution using if/elif/fi
       if [[ "${DISTRO}" == "ubuntu" || "${DISTRO}" == "debian" || "${DISTRO}" == "raspbian" || "${DISTRO}" == "pop" || "${DISTRO}" == "kali" || "${DISTRO}" == "linuxmint" ]]; then
         apt-get update && apt-get install -y curl cron
@@ -67,42 +73,38 @@ function installing_system_requirements() {
 installing_system_requirements
 
 # Global variables
-# System Config Paths
-RESOLV_CONFIG="/etc/resolv.conf"                            # Path to the system's DNS resolver configuration file
-RESOLV_CONFIG_OLD="${RESOLV_CONFIG}.old"                    # Path to the backup of the DNS resolver configuration file
-UNBOUND_ROOT="/etc/unbound"                                 # Directory where Unbound DNS configuration and data are stored
-UNBOUND_CONFIG="${UNBOUND_ROOT}/unbound.conf"               # Path to the Unbound main configuration file
-UNBOUND_ROOT_HINTS="${UNBOUND_ROOT}/root.hints"             # Path to the root DNS hints file for Unbound
-UNBOUND_ANCHOR="/var/lib/unbound/root.key"                  # Path to the DNS root key for DNSSEC validation
-UNBOUND_CONFIG_HOST="/etc/unbound/unbound.conf.d/host.conf" # Path to the Unbound configuration file for DNS blocking via host
+RESOLV_CONFIG="/etc/resolv.conf"                                                                                                                     # Path to the system's DNS resolver configuration file
+RESOLV_CONFIG_OLD="${RESOLV_CONFIG}.old"                                                                                                             # Path to the backup of the DNS resolver configuration file
+UNBOUND_ROOT="/etc/unbound"                                                                                                                          # Directory where Unbound DNS configuration and data are stored
+UNBOUND_CONFIG="${UNBOUND_ROOT}/unbound.conf"                                                                                                        # Path to the Unbound main configuration file
+UNBOUND_ROOT_HINTS="${UNBOUND_ROOT}/root.hints"                                                                                                      # Path to the root DNS hints file for Unbound
+UNBOUND_ANCHOR="/var/lib/unbound/root.key"                                                                                                           # Path to the DNS root key for DNSSEC validation
+UNBOUND_CONFIG_HOST="${UNBOUND_ROOT}/unbound.conf.d/host.conf"                                                                                       # Path to the Unbound configuration file for DNS blocking via host
+UNBOUND_MANAGER_UPDATE_URL="https://raw.githubusercontent.com/Strong-Foundation/unbound-manager/refs/heads/main/unbound-manager.sh"                  # URL to the latest Unbound manager script
+UNBOUND_CONFIG_REMOTE_URL="https://raw.githubusercontent.com/Strong-Foundation/unbound-manager/refs/heads/main/assets/unbound.conf"                  # URL to the remote-based Unbound configuration
+UNBOUND_CONFIG_ROOT_NAME_SERVERS_REMOTE_URL="https://raw.githubusercontent.com/Strong-Foundation/unbound-manager/refs/heads/main/assets/named.cache" # URL to the remote-based root name servers configuration
+UNBOUND_CONFIG_HOST_URL="https://raw.githubusercontent.com/Strong-Foundation/unbound-manager/main/configs/host"                                      # URL to the host-based DNS block list configuration
+UNBOUND_MANAGER="${UNBOUND_ROOT}/unbound-manager"                                                                                                    # Directory for Unbound manager script
 
-# URLs (External Resources)
-UNBOUND_CONFIG_HOST_URL="https://raw.githubusercontent.com/complexorganizations/unbound-manager/main/configs/host"                  # URL to the host-based DNS block list configuration
-UNBOUND_MANAGER_UPDATE_URL="https://raw.githubusercontent.com/Strong-Foundation/unbound-manager/refs/heads/main/unbound-manager.sh" # URL to the latest Unbound manager script
-UNBOUND_CONFIG_REMOTE_URL="https://raw.githubusercontent.com/Strong-Foundation/unbound-manager/refs/heads/main/assets/named.cache"  # URL to the remote-based Unbound configuration
-
-# Unbound Manager and Configuration Paths
-UNBOUND_MANAGER="${UNBOUND_ROOT}/unbound-manager" # Path to the Unbound manager script
-
-# Function to check the current init system and validate if it's supported
+# The following function checks if the current init system is one of the allowed options.
 function check-current-init-system() {
-  # Retrieve the current init system by checking the process name of PID 1
-  CURRENT_INIT_SYSTEM=$(ps --no-headers -o comm 1)
-  # Log the detected init system for reference
+  # Get the current init system by checking the process name of PID 1.
+  CURRENT_INIT_SYSTEM=$(ps -p 1 -o comm= | awk -F'/' '{print $NF}') # Extract only the command name without the full path.
+  # Convert to lowercase to make the comparison case-insensitive.
+  CURRENT_INIT_SYSTEM=$(echo "$CURRENT_INIT_SYSTEM" | tr '[:upper:]' '[:lower:]')
+  # Log the detected init system (optional for debugging purposes).
   echo "Detected init system: ${CURRENT_INIT_SYSTEM}"
-  # Check if the current init system is one of the allowed options
-  if [[ "${CURRENT_INIT_SYSTEM}" == *"systemd"* || "${CURRENT_INIT_SYSTEM}" == *"init"* || "${CURRENT_INIT_SYSTEM}" == *"upstart"* ]]; then
-    # If the init system is supported (systemd, sysvinit, or upstart), continue with the script
-    echo "Supported init system detected. Proceeding..."
-  else
-    # If the init system is unsupported, show an error and exit
-    echo "Error: The detected init system '${CURRENT_INIT_SYSTEM}' is not supported. Please use a supported init system like systemd, sysvinit, or upstart."
-    echo "For more information, visit our project page or contact support."
-    exit 1
+  # Define a list of allowed init systems (case-insensitive).
+  ALLOWED_INIT_SYSTEMS=("systemd" "sysvinit" "init" "upstart" "bash" "sh")
+  # Check if the current init system is in the list of allowed init systems
+  if [[ ! "${ALLOWED_INIT_SYSTEMS[*]}" =~ ${CURRENT_INIT_SYSTEM} ]]; then
+    # If the init system is not allowed, display an error message and exit with an error code.
+    echo "Error: The '${CURRENT_INIT_SYSTEM}' initialization system is not supported. Please stay tuned for future updates."
+    exit 1 # Exit the script with an error code.
   fi
 }
 
-# Calling the function to check the init system
+# The check-current-init-system function is being called.
 check-current-init-system
 
 if [ ! -f "${UNBOUND_MANAGER}" ]; then
@@ -115,7 +117,7 @@ if [ ! -f "${UNBOUND_MANAGER}" ]; then
       # Install Unbound based on the detected distribution
       # The script checks which distribution is being used and installs the appropriate package
       if [ "${DISTRO}" == "ubuntu" ] || [ "${DISTRO}" == "debian" ] || [ "${DISTRO}" == "raspbian" ] || [ "${DISTRO}" == "pop" ] || [ "${DISTRO}" == "kali" ] || [ "${DISTRO}" == "linuxmint" ]; then
-        apt-get install unbound unbound-host e2fsprogs -y # Install Unbound and necessary dependencies for Debian-based systems
+        apt-get install unbound unbound-host unbound-anchor e2fsprogs -y
       elif [ "${DISTRO}" == "centos" ] || [ "${DISTRO}" == "rhel" ]; then
         yum install unbound unbound-libs -y # Install Unbound and necessary dependencies for Red Hat-based systems
       elif [ "${DISTRO}" == "fedora" ]; then
@@ -206,10 +208,8 @@ if [ ! -f "${UNBOUND_MANAGER}" ]; then
       echo "Error: The script '$script_path' is not executable or the path is invalid."
       return 1
     fi
-
     # Define the cron job for daily updates at midnight
     cron_job="0 0 * * * $script_path --update"
-
     # Check if the cron job is already added
     if ! crontab -l | grep -F "$cron_job" >/dev/null; then
       # Add the cron job if not present
@@ -243,7 +243,6 @@ if [ ! -f "${UNBOUND_MANAGER}" ]; then
       echo "Error: Unknown init system '$CURRENT_INIT_SYSTEM'. Cron may not be enabled."
       return 1
     fi
-
     # Confirm that automatic updates have been successfully enabled
     echo "Automatic updates have been successfully enabled."
   }
@@ -276,6 +275,102 @@ if [ ! -f "${UNBOUND_MANAGER}" ]; then
 
 else
 
+  # Function to start unbound
+  function start-unbound() {
+    # Manage the service based on the init system
+    if [[ "${CURRENT_INIT_SYSTEM}" == "systemd" ]]; then
+      systemctl start unbound
+    elif [[ "${CURRENT_INIT_SYSTEM}" == "sysvinit" ]] || [[ "${CURRENT_INIT_SYSTEM}" == "init" ]] || [[ "${CURRENT_INIT_SYSTEM}" == "upstart" ]]; then
+      service unbound start
+    fi
+  }
+
+  # Function to stop unbound
+  function stop-unbound() {
+    # Manage the service based on the init system
+    if [[ "${CURRENT_INIT_SYSTEM}" == "systemd" ]]; then
+      systemctl stop unbound
+    elif [[ "${CURRENT_INIT_SYSTEM}" == "sysvinit" ]] || [[ "${CURRENT_INIT_SYSTEM}" == "init" ]] || [[ "${CURRENT_INIT_SYSTEM}" == "upstart" ]]; then
+      service unbound stop
+    fi
+  }
+
+  # Function to restart unbound
+  function restart-unbound() {
+    # Manage the service based on the init system
+    if [[ "${CURRENT_INIT_SYSTEM}" == "systemd" ]]; then
+      systemctl restart unbound
+    elif [[ "${CURRENT_INIT_SYSTEM}" == "sysvinit" ]] || [[ "${CURRENT_INIT_SYSTEM}" == "init" ]] || [[ "${CURRENT_INIT_SYSTEM}" == "upstart" ]]; then
+      service unbound restart
+    fi
+  }
+
+  # Function to Uninstall Unbound
+  function uninstall-unbound() {
+    if [ -x "$(command -v unbound)" ]; then
+      if [ -f "${UNBOUND_MANAGER}" ]; then
+        if pgrep systemd-journal; then
+          systemctl disable unbound
+          systemctl stop unbound
+        else
+          service unbound disable
+          service unbound stop
+        fi
+        if [ -f "${RESOLV_CONFIG_OLD}" ]; then
+          rm -f ${RESOLV_CONFIG}
+          mv ${RESOLV_CONFIG_OLD} ${RESOLV_CONFIG}
+        fi
+        if { [ "${DISTRO}" == "centos" ] || [ "${DISTRO}" == "rhel" ]; }; then
+          yum remove unbound unbound-host -y
+        elif { [ "${DISTRO}" == "debian" ] || [ "${DISTRO}" == "pop" ] || [ "${DISTRO}" == "ubuntu" ] || [ "${DISTRO}" == "raspbian" ] || [ "${DISTRO}" == "kali" ] || [ "${DISTRO}" == "linuxmint" ]; }; then
+          apt-get remove --purge unbound unbound-host -y
+        elif { [ "${DISTRO}" == "arch" ] || [ "${DISTRO}" == "manjaro" ]; }; then
+          pacman -Rs unbound unbound-host -y
+        elif [ "${DISTRO}" == "fedora" ]; then
+          dnf remove unbound -y
+        elif [ "${DISTRO}" == "alpine" ]; then
+          apk del unbound
+        elif [ "${DISTRO}" == "freebsd" ]; then
+          pkg delete unbound
+        fi
+        if [ -f "${UNBOUND_MANAGER}" ]; then
+          rm -f ${UNBOUND_MANAGER}
+        fi
+        if [ -f "${UNBOUND_CONFIG}" ]; then
+          rm -f ${UNBOUND_CONFIG}
+        fi
+        if [ -f "${UNBOUND_ANCHOR}" ]; then
+          rm -f ${UNBOUND_ANCHOR}
+        fi
+        if [ -f "${UNBOUND_ROOT_HINTS}" ]; then
+          rm -f ${UNBOUND_ROOT_HINTS}
+        fi
+        if [ -f "${UNBOUND_ROOT}" ]; then
+          rm -f ${UNBOUND_ROOT}
+        fi
+      fi
+    fi
+  }
+
+  # Function to update Unbound
+  function update-unbound() {
+    # Update script
+    CURRENT_FILE_PATH="$(realpath "$0")"
+    if [ -f "${CURRENT_FILE_PATH}" ]; then
+      curl -o "${CURRENT_FILE_PATH}" ${UNBOUND_MANAGER_UPDATE_URL}
+      chmod +x "${CURRENT_FILE_PATH}" || exit
+    fi
+    # Update root hints
+    if [ -f "${UNBOUND_ROOT_HINTS}" ]; then
+      curl "${UNBOUND_ROOT_SERVER_CONFIG_URL}" -o ${UNBOUND_ROOT_HINTS}
+    fi
+    # Update Host List
+    if [ -f "${UNBOUND_CONFIG_HOST}" ]; then
+      rm -f ${UNBOUND_CONFIG_HOST}
+      curl "${UNBOUND_CONFIG_HOST_URL}" | awk '{print "local-zone: \""$1"\" always_refuse"}' >${UNBOUND_CONFIG_HOST}
+    fi
+  }
+
   # take user input
   function take-user-input() {
     echo "What do you want to do?"
@@ -289,96 +384,19 @@ else
     done
     case $USER_OPTIONS in
     1)
-      if [ -x "$(command -v unbound)" ]; then
-        if pgrep systemd-journal; then
-          systemctl start unbound
-        else
-          service unbound start
-        fi
-      fi
+      start-unbound
       ;;
     2)
-      if [ -x "$(command -v unbound)" ]; then
-        if pgrep systemd-journal; then
-          systemctl stop unbound
-        else
-          service unbound stop
-        fi
-      fi
+      stop-unbound
       ;;
     3)
-      if [ -x "$(command -v unbound)" ]; then
-        if pgrep systemd-journal; then
-          systemctl restart unbound
-        else
-          service unbound restart
-        fi
-      fi
+      restart-unbound
       ;;
     4)
-      if [ -x "$(command -v unbound)" ]; then
-        if [ -f "${UNBOUND_MANAGER}" ]; then
-          if pgrep systemd-journal; then
-            systemctl disable unbound
-            systemctl stop unbound
-          else
-            service unbound disable
-            service unbound stop
-          fi
-          if [ -f "${RESOLV_CONFIG_OLD}" ]; then
-            rm -f ${RESOLV_CONFIG}
-            mv ${RESOLV_CONFIG_OLD} ${RESOLV_CONFIG}
-          fi
-          if { [ "${DISTRO}" == "centos" ] || [ "${DISTRO}" == "rhel" ]; }; then
-            yum remove unbound unbound-host -y
-          elif { [ "${DISTRO}" == "debian" ] || [ "${DISTRO}" == "pop" ] || [ "${DISTRO}" == "ubuntu" ] || [ "${DISTRO}" == "raspbian" ] || [ "${DISTRO}" == "kali" ] || [ "${DISTRO}" == "linuxmint" ]; }; then
-            apt-get remove --purge unbound unbound-host -y
-          elif { [ "${DISTRO}" == "arch" ] || [ "${DISTRO}" == "manjaro" ]; }; then
-            pacman -Rs unbound unbound-host -y
-          elif [ "${DISTRO}" == "fedora" ]; then
-            dnf remove unbound -y
-          elif [ "${DISTRO}" == "alpine" ]; then
-            apk del unbound
-          elif [ "${DISTRO}" == "freebsd" ]; then
-            pkg delete unbound
-          fi
-          if [ -f "${UNBOUND_MANAGER}" ]; then
-            rm -f ${UNBOUND_MANAGER}
-          fi
-          if [ -f "${UNBOUND_CONFIG}" ]; then
-            rm -f ${UNBOUND_CONFIG}
-          fi
-          if [ -f "${UNBOUND_ANCHOR}" ]; then
-            rm -f ${UNBOUND_ANCHOR}
-          fi
-          if [ -f "${UNBOUND_ROOT_HINTS}" ]; then
-            rm -f ${UNBOUND_ROOT_HINTS}
-          fi
-          if [ -f "${UNBOUND_ROOT}" ]; then
-            rm -f ${UNBOUND_ROOT}
-          fi
-        fi
-      fi
+      uninstall-unbound
       ;;
     5)
-      # Update script
-      CURRENT_FILE_PATH="$(realpath "$0")"
-      if [ -f "${CURRENT_FILE_PATH}" ]; then
-        curl -o "${CURRENT_FILE_PATH}" ${UNBOUND_MANAGER_UPDATE_URL}
-        chmod +x "${CURRENT_FILE_PATH}" || exit
-      fi
-      # Update root hints
-      if [ -f "${UNBOUND_ROOT_HINTS}" ]; then
-        curl "${UNBOUND_ROOT_SERVER_CONFIG_URL}" -o ${UNBOUND_ROOT_HINTS}
-      fi
-      # Update Host List
-      if [ -f "${UNBOUND_CONFIG_HOST}" ]; then
-        rm -f ${UNBOUND_CONFIG_HOST}
-        curl "${UNBOUND_CONFIG_HOST_URL}" -o "${UNBOUND_CONFIG_HOST_TMP}"
-        sed -i -e "s_.*_0.0.0.0 &_" "${UNBOUND_CONFIG_HOST_TMP}"
-        grep "^0\.0\.0\.0" "${UNBOUND_CONFIG_HOST_TMP}" | awk '{print "local-data: \""$2" IN A 0.0.0.0\""}' >"${UNBOUND_CONFIG_HOST}"
-        rm -f "${UNBOUND_CONFIG_HOST_TMP}"
-      fi
+      update-unbound
       ;;
     esac
   }
