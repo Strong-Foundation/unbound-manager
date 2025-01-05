@@ -183,16 +183,9 @@ if [ ! -f "${UNBOUND_MANAGER}" ]; then
   # Install unbound Ad Blocker Config
   function ad-block-config-unbound() {
     # Download the ad blocker config file from the provided URL and save it to the specified host file
-    curl -sSL "${UNBOUND_CONFIG_HOST_URL}" -o "${UNBOUND_CONFIG_HOST}"
-    # Append the path of the downloaded config file to the main unbound config file
+    curl "${UNBOUND_CONFIG_HOST_URL}" | awk '{print "local-zone: \""$1"\" always_refuse"}' >${UNBOUND_CONFIG_HOST}
     # This makes the unbound configuration aware of the newly downloaded blocklist
     echo "include: ${UNBOUND_CONFIG_HOST}" >>"${UNBOUND_CONFIG}"
-    # Prepend "0.0.0.0" to each line in the downloaded blocklist file to redirect blocked domains to the null IP address
-    # This modifies the entries so they are effectively "blocked" by resolving to an invalid address
-    sed -i -e "s_.*_0.0.0.0 &_" "${UNBOUND_CONFIG_HOST}"
-    # Filter the lines starting with "0.0.0.0" and format them as Unbound local-data entries
-    # The formatted lines will specify that the domain resolves to 0.0.0.0, which Unbound will treat as an invalid IP
-    grep "^0\.0\.0\.0" "${UNBOUND_CONFIG_HOST}" | awk '{print "local-data: \""$2" IN A 0.0.0.0\""}' >"${UNBOUND_CONFIG_HOST}"
     # Print a success message indicating the ad blocker config has been applied
     echo "Ad blocker config has been applied successfully."
   }
