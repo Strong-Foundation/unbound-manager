@@ -6,9 +6,7 @@ LABEL maintainer="Prajwal Koirala <prajwalkoirala23@protonmail.com>"
 
 # Install necessary packages (curl) and clean up unnecessary files to keep the image smaller
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl && \
-    # Clean up cached files to reduce the size of the image
-    rm -rf /var/lib/apt/lists/*
+    apt-get install -y curl
 
 # Download and set up the Unbound Manager script from the GitHub repository
 RUN curl -sSL https://raw.githubusercontent.com/Strong-Foundation/unbound-manager/refs/heads/main/unbound-manager.sh -o /usr/local/bin/unbound-manager.sh && \
